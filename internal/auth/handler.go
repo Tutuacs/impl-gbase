@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/Tutuacs/pkg/enums"
+	"github.com/Tutuacs/pkg/password"
 	"github.com/Tutuacs/pkg/resolver"
 	"github.com/Tutuacs/pkg/routes"
 
@@ -40,13 +41,13 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 
 	defer store.CloseStore()
 
-	id, email, password, err := store.GetLogin(data.Email)
+	id, email, pass, err := store.GetLogin(data.Email)
 	if err != nil {
 		resolver.WriteResponse(w, http.StatusInternalServerError, map[string]string{"Error": "Unable to retrieve user."})
 		return
 	}
 
-	if !ValidPassword(password, data.Password) {
+	if !password.ValidPassword(pass, data.Password) {
 		resolver.WriteResponse(w, http.StatusUnauthorized, map[string]string{"Error": "Invalid credentials."})
 		return
 	}
@@ -85,7 +86,7 @@ func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hashedPassword, err := HashPassword(payload.Password)
+	hashedPassword, err := password.HashPassword(payload.Password)
 	if err != nil {
 		resolver.WriteResponse(w, http.StatusInternalServerError, err)
 		return
@@ -102,7 +103,7 @@ func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resolver.WriteResponse(w, http.StatusCreated, nil)
+	resolver.WriteResponse(w, http.StatusCreated, map[string]string{"Ok": "Created"})
 }
 
 // ! Recommended private functions

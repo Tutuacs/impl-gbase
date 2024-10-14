@@ -7,23 +7,7 @@ import (
 
 	"github.com/Tutuacs/pkg/config"
 	"github.com/dgrijalva/jwt-go"
-	"golang.org/x/crypto/bcrypt"
 )
-
-func HashPassword(password string) (string, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return "", err
-	}
-
-	return string(hash), nil
-
-}
-
-func ValidPassword(hashed string, password string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(hashed), []byte(password))
-	return err == nil
-}
 
 func CreateJWT(email string, userID int64) (string, error) {
 	expiration := time.Second * time.Duration(config.GetJWT().JWT_EXP)

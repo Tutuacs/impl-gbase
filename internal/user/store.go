@@ -50,32 +50,42 @@ func (s *Store) GetConn() *sql.DB {
 // TODO: Implement the store consults
 
 func (s *Store) Create(newUser NewUserDto) (usr *User, err error) {
+	sql := "INSERT INTO " + s.Table + " (name, role, email, password) VALUES ($1, $2, $3, $4) RETURNING id, name, role, email, password, createdAt"
 
-	// create a sql like this to crrete a new user and return the user created
-	// sql := "INSERT INTO " + s.Table + " (name, role, email, password) VALUES (?, ?, ?, ?)"
+	row := s.db.QueryRow(sql, newUser.Name, newUser.Role, newUser.Email, newUser.Password)
 
-	sql := "INSERT INTO " + s.Table + " (name, role, email, password) VALUES (?, ?, ?, ?) RETURNING id, name, role, email"
-
-	rows, err := s.db.Query(sql, newUser.Name, newUser.Role, newUser.Email, newUser.Password)
-	if err != nil {
-		return
-	}
-
-	db.ScanRows(rows, usr)
-
-	// row, err := s.db.QueryRow(sql, newUser.Name, newUser.Role, newUser.Email, newUser.Password)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("Error creating the user: %s", err)
-	// }
+	usr = &User{}
+	err = db.ScanRow(row, usr)
 
 	return
 }
 
 func (s *Store) GetByID(ID int64) (*User, error) {
 
-	sql := "SELECT * FROM " + s.Table + " WHERE id = ?"
+	sql := "SELECT * FROM " + s.Table + " WHERE id = $1"
 
 	rows, err := s.db.Query(sql, ID)
+	if err != nil {
+		return nil, err
+	}
+
+	usr := new(User)
+
+	for rows.Next() {
+		err = db.ScanRows(rows, usr)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return usr, err
+}
+
+func (s *Store) GetByEmail(Email string) (*User, error) {
+
+	sql := "SELECT * FROM " + s.Table + " WHERE email = $1"
+
+	rows, err := s.db.Query(sql, Email)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +129,7 @@ func (s *Store) List() (usrs []*User, err error) {
 
 func (s *Store) Update(id int64, newUser UpdateUserDto) (usr *User, err error) {
 
-	sql := "UPDATE " + s.Table + " SET name = ?, role = ?, email = ? WHERE id = ? RETURNING id, name, role, email, createdAt"
+	sql := "UPDATE " + s.Table + " SET name = $1, role = $2, email = $3 WHERE id = $4 RETURNING id, name, role, email, createdAt"
 
 	rows, err := s.db.Query(sql, newUser.Name, newUser.Role, newUser.Email, id)
 	if err != nil {
@@ -133,7 +143,7 @@ func (s *Store) Update(id int64, newUser UpdateUserDto) (usr *User, err error) {
 
 func (s *Store) Delete(id int64) (usr *User, err error) {
 
-	sql := "DELETE FROM " + s.Table + " WHERE id = ? RETURNING id, name, role, email, createdAt"
+	sql := "DELETE FROM " + s.Table + " WHERE id = $1 RETURNING id, name, role, email, createdAt"
 
 	row, err := s.db.Query(sql, id)
 	if err != nil {

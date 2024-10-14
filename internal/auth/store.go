@@ -33,23 +33,26 @@ func (s *Store) CloseStore() {
 	}
 }
 
-func (s *Store) GetUserByEmail(email string) (*user.User, error) {
-	var user user.User
+func (s *Store) GetUserByEmail(email string) (usr *user.User, err error) {
+	err = nil
+	usr = &user.User{}
 
-	query := "SELECT * FROM " + s.Table + " WHERE email = ?"
+	query := "SELECT * FROM " + s.Table + " WHERE email = $1"
 	row := s.db.QueryRow(query, email)
-	db.ScanRow(row, user)
 
-	if user.ID == 0 {
-		return nil, fmt.Errorf("User not found")
+	db.ScanRow(row, usr)
+
+	if usr.ID == 0 {
+		err = fmt.Errorf("user not found")
+		return
 	}
 
-	return &user, nil
+	return
 }
 
 func (s *Store) GetUserByID(ID int) (*user.User, error) {
 
-	sql := "SELECT * FROM users WHERE id = ?"
+	sql := "SELECT * FROM users WHERE id = $1"
 
 	rows, err := s.db.Query(sql, ID)
 	if err != nil {
@@ -69,7 +72,7 @@ func (s *Store) GetUserByID(ID int) (*user.User, error) {
 }
 
 func (s *Store) CreateUser(user user.User) error {
-	query := "INSERT INTO " + s.Table + " (name, email, password) VALUES (?, ?, ?, ?)"
+	query := "INSERT INTO " + s.Table + " (name, email, password) VALUES ($1, $2, $3)"
 	_, err := s.db.Exec(query, strings.Split(user.Email, "@")[0], user.Email, user.Password)
 	return err
 }
@@ -78,7 +81,7 @@ func (s *Store) GetLogin(email string) (int64, string, string, error) {
 	var userEmail, password string
 	var id int64
 
-	query := fmt.Sprintf("SELECT email, password FROM %s WHERE email = ?", s.Table)
+	query := fmt.Sprintf("SELECT email, password FROM %s WHERE email = $1", s.Table)
 	err := s.db.QueryRow(query, email).Scan(&id, &userEmail, &password)
 	if err != nil {
 		if err == sql.ErrNoRows {

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/Tutuacs/pkg/password"
 	"github.com/Tutuacs/pkg/resolver"
 	"github.com/Tutuacs/pkg/routes"
 	"github.com/go-playground/validator"
@@ -26,20 +27,6 @@ func (h *Handler) BuildRoutes(router routes.Route) {
 	router.NewRoute(routes.DELETE, h.subRoute+"/{id}", h.delete)
 }
 
-// ! Recommended private functions
-// * Create stores to get DB data like this
-/*
-	store, err := NewStore()
-	if err != nil {
-		return
-	}
-
-	defer store.CloseStore()
-
-	* Use resolver to getParams, getBody and writeResponse
-
-*/
-
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 
 	var payload NewUserDto
@@ -53,13 +40,12 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 
 	if err := resolver.Validate.Struct(payload); err != nil {
 		errors := err.(validator.ValidationErrors)
-		resolver.WriteResponse(w, http.StatusBadRequest, map[string]string{"Error validating the body": errors.Error()})
+		resolver.WriteResponse(w, http.StatusBadRequest, errors.Error())
 		return
 	}
 
 	store, err := NewStore()
 	if err != nil {
-
 		resolver.WriteResponse(w, http.StatusInternalServerError, map[string]string{"Error opening the store": err.Error()})
 		return
 	}
@@ -67,6 +53,19 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	defer store.CloseStore()
 
 	// TODO: Implement the auth validation after create
+
+	exists, err := store.GetByEmail(payload.Email)
+	if err == nil && exists.ID != 0 {
+		resolver.WriteResponse(w, http.StatusConflict, map[string]string{"Error creating the user ": "User already exists"})
+		return
+	}
+
+	pass, err := password.HashPassword(payload.Password)
+	if err != nil {
+		resolver.WriteResponse(w, http.StatusInternalServerError, map[string]string{"Error encrypting the users pass": err.Error()})
+		return
+	}
+	payload.Password = pass
 
 	usr, err := store.Create(payload)
 	if err != nil {
@@ -81,7 +80,6 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 
 	store, err := NewStore()
 	if err != nil {
-
 		resolver.WriteResponse(w, http.StatusInternalServerError, map[string]string{"Error opening the store": err.Error()})
 		return
 	}
